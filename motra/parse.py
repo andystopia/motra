@@ -12,7 +12,7 @@ def parse(path: str) -> pd.DataFrame:
     for sheet_name in excel_file.sheet_names:
         fly = pd.read_excel(path, sheet_name=sheet_name)
         fly["fly_id"] = count
-        fly["timestamp"] = np.divide(np.arange(fly.shape[0]), 30)
+        fly["timestamp"] = np.round(np.arange(fly.shape[0]) / 30, 4)
         flies = pd.concat([flies, fly], ignore_index=True)
         count += 1
 
