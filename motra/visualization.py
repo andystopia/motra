@@ -3,6 +3,9 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation, FFMpegWriter
 import seaborn as sns
 
+from .util import sample_by_fly
+from .fps import fps
+
 
 def arena(coordinates: pd.DataFrame) -> tuple[tuple, int]:
 
@@ -42,19 +45,19 @@ def arena(coordinates: pd.DataFrame) -> tuple[tuple, int]:
 
 def _arena_boundary(arena_center: tuple, arena_radius: int, figsize: int = 10):
 
-    _, ax = plt.subplots(figsize=(figsize, figsize))
+    fig, ax = plt.subplots(figsize=(figsize, figsize))
 
     arena_boundary = plt.Circle(
         arena_center, arena_radius, color="black", fill=False)
     ax.add_patch(arena_boundary)
 
-    return ax
+    return fig, ax
 
 
 def arena_trajectory(coordinates: pd.DataFrame, arena_center: tuple,
                      arena_radius: int, figsize: int = 10) -> None:
 
-    ax = _arena_boundary(arena_center, arena_radius, figsize)
+    _, ax = _arena_boundary(arena_center, arena_radius, figsize)
 
     for fly_id in coordinates["fly_id"].unique():
         label = "fly {}".format(fly_id)
@@ -68,7 +71,7 @@ def arena_trajectory(coordinates: pd.DataFrame, arena_center: tuple,
 def heatmap(coordinates: pd.DataFrame, arena_center: tuple,
             arena_radius: int, figsize: int = 10, thresh: float = 0.5) -> None:
 
-    ax = _arena_boundary(arena_center, arena_radius, figsize)
+    _, ax = _arena_boundary(arena_center, arena_radius, figsize)
 
     sns.kdeplot(data=coordinates, x="pos x", y="pos y",
                 ax=ax, hue="fly_id", thresh=thresh, fill=True, palette="tab10")
@@ -76,34 +79,57 @@ def heatmap(coordinates: pd.DataFrame, arena_center: tuple,
     plt.show()
 
 
-def fly_animation(coordinates: pd.DataFrame, result_video_path: str):
-    x_coords = coordinates["pos x"]
-    y_coords = coordinates["pos y"]
+def fly_animation(coordinates: pd.DataFrame, result_video_path: str, video_size: float = None,
+                  figsize: int = 15):
 
-    fig, ax = plt.subplots(figsize=(20, 10))
-    ax.set_xlim(min(x_coords), max(x_coords))
-    ax.set_ylim(min(y_coords), max(y_coords))
-    point, = ax.plot([], [], "bo")
-    line, = ax.plot([], [], lw=2)
+    center, radius = arena(coordinates)
+    fig, ax = _arena_boundary(center, radius, figsize)
+
+    sample_coordinates = sample_by_fly(coordinates, video_size)
+    fly_ids = sample_coordinates["fly_id"].unique()
+    total_frames = sample_coordinates[sample_coordinates["fly_id"]
+                                      == fly_ids[0]].shape[0]
+
+    points = []
+    lines = []
+    lw = 2
+
+    for _ in fly_ids:
+        point, = ax.plot([], [], "o")
+        line, = ax.plot([], [], lw=lw)
+
+        points.append(point)
+        lines.append(line)
 
     def init():
-        point.set_data([], [])
-        line.set_data([], [])
-        return line, point
 
-    def ani(coords):
-        point.set_data([coords[1]], [coords[2]])
-        line.set_data(x_coords[:coords[0]], y_coords[:coords[0]])
-        return line, point
+        for idx in range(len(fly_ids)):
+            points[idx].set_data([], [])
+            lines[idx].set_data([], [])
+            lines[idx].set_label("fly {}".format(fly_ids[idx]))
 
-    def frames():
-        index = 0
-        for acc_11_pos, acc_12_pos in zip(x_coords, y_coords):
-            yield index, acc_11_pos, acc_12_pos
-            index += 1
+        return points + lines
 
-    anim = FuncAnimation(fig, ani, init_func=init,
-                         frames=frames, interval=1000/30, save_count=coordinates.shape[0])
-    anim.save(result_video_path, writer=FFMpegWriter(fps=30))
+    def animate(current_frame):
 
+        for fly_id_idx in range(len(fly_ids)):
+            fly_coord = sample_coordinates[sample_coordinates["fly_id"]
+                                           == fly_ids[fly_id_idx]]
+
+            x = fly_coord["pos x"].to_numpy()[current_frame]
+            y = fly_coord["pos y"].to_numpy()[current_frame]
+            points[fly_id_idx].set_data([x], [y])
+
+            x_cum = fly_coord["pos x"].to_numpy()[:current_frame]
+            y_cum = fly_coord["pos y"].to_numpy()[:current_frame]
+            lines[fly_id_idx].set_data([x_cum], [y_cum])
+
+        return points + lines
+
+    interval = fps * 1000  # convert to ms
+    animation = FuncAnimation(fig, animate, init_func=init, frames=total_frames,
+                              interval=interval)
+    animation.save(result_video_path, writer=FFMpegWriter(fps=fps))
+
+    plt.legend()
     plt.show()

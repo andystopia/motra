@@ -2,7 +2,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from motra.util import distance
+from .util import distance
+from .fps import fps
 
 
 def stats(flies_data: pd.DataFrame, time_frame: float = 1) -> pd.DataFrame:
@@ -28,7 +29,7 @@ def stats(flies_data: pd.DataFrame, time_frame: float = 1) -> pd.DataFrame:
     coordinates["distance"] = coordinates.groupby("fly_id")[
         "distance"].cumsum()
     coordinates["index_in_group"] = coordinates.groupby("fly_id").cumcount()
-    frames = time_frame / (1 / 30)
+    frames = time_frame / (1 / fps)
     coordinates["mod_of_index"] = coordinates["index_in_group"] % frames
     coordinates = coordinates.loc[coordinates["mod_of_index"] == 0]
     coordinates.loc[coordinates["index_in_group"] == 0, "distance"] = 0
