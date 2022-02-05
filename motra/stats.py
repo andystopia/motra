@@ -52,7 +52,7 @@ def visualize_stats(stats: pd.DataFrame, figsize: tuple = (15, 10),
 
     for i in range(len(columns)):
         sns.lineplot(data=stats_copy, x="timestamp",
-                     y=columns[i], hue="fly_id", ax=axes[i])
+                     y=columns[i], hue="fly_id", ax=axes[i], palette="tab10")
         axes[i].set_xticklabels(axes[i].get_xticks(), rotation=90)
 
     plt.show()
