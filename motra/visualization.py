@@ -1,7 +1,7 @@
 import pandas as pd
 import matplotlib.pyplot as plt
+from matplotlib import colors
 from matplotlib.animation import FuncAnimation, FFMpegWriter
-import seaborn as sns
 
 from .util import sample_by_fly
 from .fps import fps
@@ -54,6 +54,11 @@ def _arena_boundary(arena_center: tuple, arena_radius: int, figsize: int = 10):
     return fig, ax
 
 
+def _remove_axes_labels(ax: plt.Axes):
+    ax.get_xaxis().set_visible(False)
+    ax.get_yaxis().set_visible(False)
+
+
 def arena_trajectory(coordinates: pd.DataFrame, arena_center: tuple,
                      arena_radius: int, figsize: int = 10) -> None:
 
@@ -63,18 +68,21 @@ def arena_trajectory(coordinates: pd.DataFrame, arena_center: tuple,
         label = "fly {}".format(fly_id)
         ax.plot("pos x", "pos y",
                 data=coordinates.loc[coordinates["fly_id"] == fly_id], label=label)
+        _remove_axes_labels(ax)
 
     ax.legend()
     plt.show()
 
 
 def heatmap(coordinates: pd.DataFrame, arena_center: tuple,
-            arena_radius: int, figsize: int = 10, thresh: float = 0.5) -> None:
+            arena_radius: int, figsize: int = 8, bins: int = 100, 
+            linthresh: float = 15, cmap="viridis") -> None:
 
     _, ax = _arena_boundary(arena_center, arena_radius, figsize)
 
-    sns.kdeplot(data=coordinates, x="pos x", y="pos y",
-                ax=ax, hue="fly_id", thresh=thresh, fill=True, palette="tab10")
+    ax.hist2d(coordinates["pos x"], coordinates["pos y"],
+              bins=bins, norm=colors.SymLogNorm(linthresh=linthresh), cmap=cmap)
+    _remove_axes_labels(ax)
 
     plt.show()
 

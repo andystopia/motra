@@ -44,16 +44,19 @@ def stats(flies_data: pd.DataFrame, time_frame: float = 1) -> pd.DataFrame:
     return result.reset_index(drop=True)
 
 
-def visualize_stats(stats: pd.DataFrame, figsize: tuple = (15, 10),
-                    columns: list = ["distance", "velocity (per second)"]) -> None:
-
-    stats_copy = stats.copy()
-
+def visualize_stats(stats: pd.DataFrame, figsize: tuple = (15, 20),
+                    columns: list = ["distance", "velocity (per second)"],  ylims: int = [None, None], x_label_freq: int = 1) -> None:
     _, axes = plt.subplots(nrows=len(columns), figsize=figsize)
-
     for i in range(len(columns)):
-        sns.lineplot(data=stats_copy, x="timestamp",
-                     y=columns[i], hue="fly_id", ax=axes[i], palette="tab10")
+        sns.barplot(data=stats, x="timestamp",
+                    y=columns[i], hue="fly_id", ax=axes[i], palette="tab10")
+
+        for idx, t in enumerate(axes[i].get_xticklabels()):
+            if (idx % (stats.shape[0] // x_label_freq)) != 0:
+                t.set_visible(False)
+
+        axes[i].tick_params(bottom=False)
         axes[i].set_xticklabels(axes[i].get_xticks(), rotation=90)
+        axes[i].set_ylim(top=ylims[i])
 
     plt.show()
