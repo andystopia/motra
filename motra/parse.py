@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-from .fps import fps
+from .constants import FPS
 
 
 def parse(path: str) -> pd.DataFrame:
@@ -13,7 +13,7 @@ def parse(path: str) -> pd.DataFrame:
         if not fly.empty:
             fly["fly_id"] = count
             fly["timestamp"] = np.round(
-                np.arange(fly.shape[0]) / fps, decimal_precision)
+                np.arange(fly.shape[0]) / FPS, decimal_precision)
             count += 1
 
     flies = pd.concat(flies_dict.values(), ignore_index=True)

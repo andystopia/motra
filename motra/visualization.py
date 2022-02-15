@@ -4,7 +4,7 @@ from matplotlib import colors
 from matplotlib.animation import FuncAnimation, FFMpegWriter
 
 from .util import sample_by_fly
-from .fps import fps
+from .constants import FPS
 
 
 def arena(coordinates: pd.DataFrame) -> tuple[tuple, int]:
@@ -75,7 +75,7 @@ def arena_trajectory(coordinates: pd.DataFrame, arena_center: tuple,
 
 
 def heatmap(coordinates: pd.DataFrame, arena_center: tuple,
-            arena_radius: int, figsize: int = 8, bins: int = 100, 
+            arena_radius: int, figsize: int = 8, bins: int = 100,
             linthresh: float = 15, cmap="viridis") -> None:
 
     _, ax = _arena_boundary(arena_center, arena_radius, figsize)
@@ -92,6 +92,7 @@ def fly_animation(coordinates: pd.DataFrame, result_video_path: str, video_size:
 
     center, radius = arena(coordinates)
     fig, ax = _arena_boundary(center, radius, figsize)
+    _remove_axes_labels(ax)
 
     sample_coordinates = sample_by_fly(coordinates, video_size)
     fly_ids = sample_coordinates["fly_id"].unique()
@@ -134,10 +135,10 @@ def fly_animation(coordinates: pd.DataFrame, result_video_path: str, video_size:
 
         return points + lines
 
-    interval = fps * 1000  # convert to ms
+    interval = FPS * 1000  # convert to ms
     animation = FuncAnimation(fig, animate, init_func=init, frames=total_frames,
                               interval=interval)
-    animation.save(result_video_path, writer=FFMpegWriter(fps=fps))
+    animation.save(result_video_path, writer=FFMpegWriter(fps=FPS))
 
     plt.legend()
     plt.show()
