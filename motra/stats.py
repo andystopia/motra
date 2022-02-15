@@ -1,8 +1,9 @@
+import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from .util import distance
+from .util import distance, convert_to_relative_unit
 from .constants import FPS
 
 
@@ -50,25 +51,25 @@ def time_distribution_by_quadrant(coordinates: pd.DataFrame, arena_center: tuple
     center_x = arena_center[0]
     center_y = arena_center[1]
 
-    # quadrant = (x0, y0, x1, y1)
-    q1 = (center_x, center_y, center_x + arena_radius, center_y + arena_radius)
-    q2 = (center_x - arena_radius, center_y, center_x, center_y + arena_radius)
-    q3 = (center_x - arena_radius, center_y - arena_radius, center_x, center_y)
-    q4 = (center_x, center_y - arena_radius, center_x + arena_radius, center_y)
-    quadrants = (q1, q2, q3, q4)
+    _coords = coordinates.copy()
+    _coords["absolute_pos_x"] = _coords["pos x"] - center_x
+    _coords["absolute_pos_y"] = _coords["pos y"] - center_y
 
-    def _hit_test(x: float, y: float) -> int:
+    conditions = [
+        np.logical_and(np.greater_equal(
+            _coords["absolute_pos_x"], 0), np.greater_equal(_coords["absolute_pos_y"], 0)),
+        np.logical_and(np.less_equal(
+            _coords["absolute_pos_x"], 0), np.greater_equal(_coords["absolute_pos_y"], 0)),
+        np.logical_and(np.less_equal(
+            _coords["absolute_pos_x"], 0), np.less_equal(_coords["absolute_pos_y"], 0)),
+        np.logical_and(np.greater_equal(
+            _coords["absolute_pos_x"], 0), np.less_equal(_coords["absolute_pos_y"], 0)),
+    ]
 
-        for idx, quad in enumerate(quadrants):
-            x0, y0, x1, y1 = quad
-            if x0 <= x <= x1 and y0 <= y <= y1:
-                return idx
+    outputs = [1, 2, 3, 4]
+    _coords["quadrant"] = np.select(conditions, outputs)
 
-    coordinates_copy = coordinates.copy()
-    coordinates_copy["quadrant"] = coordinates_copy.apply(
-        lambda row: _hit_test(row["pos x"], row["pos y"]), axis=1)
-
-    fly_quadrant_dist = coordinates_copy.groupby(
+    fly_quadrant_dist = _coords.groupby(
         ["fly_id", "quadrant"])["pos x"].count().reset_index()
     fly_quadrant_dist_pivot = fly_quadrant_dist.pivot(
         index="fly_id", columns="quadrant", values="pos x")
@@ -78,6 +79,48 @@ def time_distribution_by_quadrant(coordinates: pd.DataFrame, arena_center: tuple
         lambda row: row / total_time_by_fly)
 
     return fly_quadrant_dist_pivot
+
+
+def time_dist_circle(coordinates_dfs: list[pd.DataFrame],
+                     centers: list[tuple[float, float]],
+                     arena_radius: float,
+                     aoi_circle_radii: list[float],
+                     labels: list[str] = None) -> pd.DataFrame:
+
+    invalid_radii = [
+        r for r in aoi_circle_radii if convert_to_relative_unit(r, arena_radius) > arena_radius]
+    if len(invalid_radii) > 0:
+        print("These radii are not valid because they are larger than the arena's radius")
+        print(invalid_radii)
+        return pd.DataFrame()
+
+    aoi_radii_rel_unit = [convert_to_relative_unit(
+        r, arena_radius) for r in aoi_circle_radii]
+
+    hit_test = dict()
+    for radius_rel, radius_mm in zip(aoi_radii_rel_unit, aoi_circle_radii):
+        for coord, center in zip(coordinates_dfs, centers):
+            coordinates = coord.copy()
+            coordinates["distance_from_center"] = distance(
+                coordinates["pos x"], coordinates["pos y"], center[0], center[1])
+
+            coordinates["hit_test"] = np.where(
+                coordinates["distance_from_center"] > radius_rel, 0, 1)
+            hit_percent = coordinates["hit_test"].sum() / coordinates.shape[0]
+
+            radius_mm_key = str(radius_mm)
+            if radius_mm_key not in hit_test.keys():
+                hit_test[radius_mm_key] = [hit_percent]
+            else:
+                hit_test[radius_mm_key].append(hit_percent)
+
+    circle_dist = pd.DataFrame(hit_test)
+    circle_dist.columns = ["Circle of radius {}mm".format(
+        r) for r in circle_dist.columns]
+    if labels is not None:
+        circle_dist.index = labels
+
+    return circle_dist
 
 
 def visualize_stats(stats: pd.DataFrame, figsize: tuple = (15, 20),
@@ -104,4 +147,10 @@ def graph_time_distribution_by_quadrant(fly_quadrant_dist_pivot: pd.DataFrame,
 
     plt.figure(figsize=figsize)
     sns.heatmap(fly_quadrant_dist_pivot, annot=True, fmt=".2f", cmap=cmap)
+    plt.show()
+
+
+def graph_time_dist_circle(circle_dist: pd.DataFrame, cmap: str = "Blues",
+                           figsize: tuple = (10, 10)) -> None:
+
     plt.show()

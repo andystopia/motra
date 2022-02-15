@@ -7,42 +7,6 @@ from .util import sample_by_fly
 from .constants import FPS
 
 
-def arena(coordinates: pd.DataFrame) -> tuple[tuple, int]:
-
-    center = (0, 0)
-    radius = 0
-
-    coordinates_copy = coordinates.copy()
-    coordinates_copy.reset_index(drop=True, inplace=True)
-
-    min_x_idx = coordinates_copy["pos x"].idxmin()
-    max_x_idx = coordinates_copy["pos x"].idxmax()
-    min_y_idx = coordinates_copy["pos y"].idxmin()
-    max_y_idx = coordinates_copy["pos y"].idxmax()
-
-    diameter_x = coordinates_copy.iloc[max_x_idx]["pos x"] - \
-        coordinates_copy.iloc[min_x_idx]["pos x"]
-    diameter_y = coordinates_copy.iloc[max_y_idx]["pos y"] - \
-        coordinates_copy.iloc[min_y_idx]["pos y"]
-
-    if diameter_x < diameter_y:
-        center_x = (coordinates_copy.iloc[min_y_idx]["pos x"] +
-                    coordinates_copy.iloc[max_y_idx]["pos x"]) / 2
-        center_y = (coordinates_copy.iloc[min_y_idx]["pos y"] +
-                    coordinates_copy.iloc[max_y_idx]["pos y"]) / 2
-        radius = diameter_y / 2
-    else:
-        center_x = (coordinates_copy.iloc[min_x_idx]["pos x"] +
-                    coordinates_copy.iloc[max_x_idx]["pos x"]) / 2
-        center_y = (coordinates_copy.iloc[min_x_idx]["pos y"] +
-                    coordinates_copy.iloc[max_x_idx]["pos y"]) / 2
-        radius = diameter_x / 2
-
-    center = (center_x, center_y)
-
-    return center, radius
-
-
 def _arena_boundary(arena_center: tuple, arena_radius: int, figsize: int = 10):
 
     fig, ax = plt.subplots(figsize=(figsize, figsize))
