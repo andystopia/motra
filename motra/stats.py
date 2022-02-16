@@ -124,9 +124,14 @@ def time_dist_circle(coordinates_dfs: list[pd.DataFrame],
 
 
 def visualize_stats(stats: pd.DataFrame, figsize: tuple = (15, 20),
-                    columns: list = ["distance", "velocity (per second)"],  ylims: int = [None, None],
-                    x_label_freq: int = 1) -> None:
+                    columns: list[str] = [
+                        "distance (mm)", "velocity (mm per second)"],
+                    ylims: list[float, float] = [None, None],
+                    x_label_freq: int = 1,
+                    ylabels: list[str] = ["distance (mm)", "velocity (mm per second)"]) -> None:
+
     _, axes = plt.subplots(nrows=len(columns), figsize=figsize)
+
     for i in range(len(columns)):
         sns.barplot(data=stats, x="timestamp",
                     y=columns[i], hue="fly_id", ax=axes[i], palette="tab10")
@@ -138,6 +143,7 @@ def visualize_stats(stats: pd.DataFrame, figsize: tuple = (15, 20),
         axes[i].tick_params(bottom=False)
         axes[i].set_xticklabels(axes[i].get_xticks(), rotation=90)
         axes[i].set_ylim(top=ylims[i])
+        axes[i].set_ylabel(ylabels[i])
 
     plt.show()
 
