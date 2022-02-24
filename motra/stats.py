@@ -98,17 +98,23 @@ def time_dist_circle(coordinates_dfs: list[pd.DataFrame],
         r, arena_radius) for r in aoi_circle_radii]
 
     hit_test = dict()
-    for radius_rel, radius_mm in zip(aoi_radii_rel_unit, aoi_circle_radii):
+    for idx in range(len(aoi_radii_rel_unit)):
         for coord, center in zip(coordinates_dfs, centers):
             coordinates = coord.copy()
             coordinates["distance_from_center"] = distance(
                 coordinates["pos x"], coordinates["pos y"], center[0], center[1])
 
-            coordinates["hit_test"] = np.where(
-                coordinates["distance_from_center"] > radius_rel, 0, 1)
+            if idx > 0:
+                coordinates["hit_test"] = np.where(
+                    np.logical_and(coordinates["distance_from_center"] <= aoi_radii_rel_unit[idx],
+                                   coordinates["distance_from_center"] > aoi_radii_rel_unit[idx - 1]), 1, 0)
+            else:
+                coordinates["hit_test"] = np.where(
+                    coordinates["distance_from_center"] <= aoi_radii_rel_unit[idx], 1, 0)
+
             hit_percent = coordinates["hit_test"].sum() / coordinates.shape[0]
 
-            radius_mm_key = str(radius_mm)
+            radius_mm_key = str(aoi_circle_radii[idx])
             if radius_mm_key not in hit_test.keys():
                 hit_test[radius_mm_key] = [hit_percent]
             else:
