@@ -45,7 +45,7 @@ def stats(flies_data: pd.DataFrame, time_frame: float = 1) -> pd.DataFrame:
     return result.reset_index(drop=True)
 
 
-def time_distribution_by_quadrant(coordinates: pd.DataFrame, arena_center: tuple[float, float],
+def time_distribution_by_quadrant(coordinates: pd.DataFrame, arena_center: tuple[float],
                                   arena_radius: float) -> pd.DataFrame:
 
     center_x = arena_center[0]

@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from matplotlib import colors
 from matplotlib.animation import FuncAnimation, FFMpegWriter
 
-from .util import sample_by_fly
+from .util import get_center_radius, sample_by_fly
 from .constants import FPS
 
 
@@ -54,7 +54,7 @@ def heatmap(coordinates: pd.DataFrame, arena_center: tuple,
 def fly_animation(coordinates: pd.DataFrame, result_video_path: str, video_size: float = None,
                   figsize: int = 15):
 
-    center, radius = arena(coordinates)
+    center, radius = get_center_radius(coordinates)
     fig, ax = _arena_boundary(center, radius, figsize)
     _remove_axes_labels(ax)
 
