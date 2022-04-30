@@ -7,15 +7,17 @@ from .util import distance, convert_to_relative_unit
 from .constants import FPS
 
 
-def stats(flies_data: pd.DataFrame, time_frame: float = 1) -> pd.DataFrame:
-    """
-    Generates statistics (distance, velocity, etc.) based on number of frames.
+def stats(flies_data: pd.DataFrame, time_interval: float = 1) -> pd.DataFrame:
+    """ Generates average distance and velocity for every time interval.
+
     Parameters
     ----------
-    coordinates: pd.DataFrame
+    flies_data: pd.DataFrame
+        Pandas DataFrame of every fly's coordinates.
+        Must have 'pos x', 'pos y', 'fly_id', and 'timestamp' columns.
 
-    frames: int
-        number of frames
+    time_frames: int
+        Time interval (unit: seconds).
     """
 
     # Calculates distance each fly made between current frame and previous frame.
@@ -27,10 +29,11 @@ def stats(flies_data: pd.DataFrame, time_frame: float = 1) -> pd.DataFrame:
         coordinates["pos_x_lagged"], coordinates["pos_y_lagged"]
     )
 
+    #
     coordinates["distance"] = coordinates.groupby("fly_id")[
         "distance"].cumsum()
     coordinates["index_in_group"] = coordinates.groupby("fly_id").cumcount()
-    frames = time_frame / (1 / FPS)
+    frames = time_interval / (1 / FPS)
     coordinates["mod_of_index"] = coordinates["index_in_group"] % frames
     coordinates = coordinates.loc[coordinates["mod_of_index"] == 0]
     coordinates.loc[coordinates["index_in_group"] == 0, "distance"] = 0
@@ -40,7 +43,7 @@ def stats(flies_data: pd.DataFrame, time_frame: float = 1) -> pd.DataFrame:
 
     result = coordinates[["fly_id", "timestamp",
                           "pos x", "pos y", "distance"]].copy()
-    result["velocity (per second)"] = result["distance"] / time_frame
+    result["velocity (per second)"] = result["distance"] / time_interval
 
     return result.reset_index(drop=True)
 
