@@ -1,13 +1,34 @@
 import pandas as pd
 import matplotlib.pyplot as plt
-from matplotlib import colors
+from matplotlib import figure, axes, colors
 from matplotlib.animation import FuncAnimation, FFMpegWriter
+from typing import Union
 
 from .util import get_center_radius, sample_by_fly
 from .constants import FPS
 
 
-def _arena_boundary(arena_center: tuple, arena_radius: int, figsize: int = 10):
+def _arena_boundary(arena_center: tuple[float],
+                    arena_radius: float,
+                    figsize: int = 10) -> tuple[figure.Figure, axes.Axes]:
+    """ Draws a circle that represents the arena.
+
+    Parameters
+    ----------
+    arena_center: tuple[float]
+        Coordinates of the arena's center.
+
+    arena_radius: float
+        Radius of the arena.
+
+    figsize: int. Optional, default to 10.
+        Size of the figure.
+        This argument will be passed as the figsize argument of matplotlib.pyplot.subplots.
+
+    Returns
+    -------
+    matplotlib.figure.Figure, matplotlib.axes.Axes
+    """
 
     fig, ax = plt.subplots(figsize=(figsize, figsize))
 
@@ -18,13 +39,36 @@ def _arena_boundary(arena_center: tuple, arena_radius: int, figsize: int = 10):
     return fig, ax
 
 
-def _remove_axes_labels(ax: plt.Axes):
+def _remove_axes_labels(ax: plt.Axes) -> None:
+    """ Removes the labels of the axes.
+    """
     ax.get_xaxis().set_visible(False)
     ax.get_yaxis().set_visible(False)
 
 
 def arena_trajectory(coordinates: pd.DataFrame, arena_center: tuple,
                      arena_radius: int, figsize: int = 10) -> None:
+    """ Draws the trajectory of each fly in the arena.
+
+    Parameters
+    ----------
+    coordinates: pd.DataFrame
+        Coordinates of each fly in the arena.
+
+    arena_center: tuple[float]
+        Coordinates of the arena's center.
+
+    arena_radius: float
+        Radius of the arena.
+
+    figsize: int. Optional, default to 10.
+        Size of the figure.
+        This argument will be passed as the figsize argument of matplotlib.pyplot.subplots.
+
+    Returns
+    -------
+    None
+    """
 
     _, ax = _arena_boundary(arena_center, arena_radius, figsize)
 
@@ -40,7 +84,40 @@ def arena_trajectory(coordinates: pd.DataFrame, arena_center: tuple,
 
 def heatmap(coordinates: pd.DataFrame, arena_center: tuple,
             arena_radius: int, figsize: int = 8, bins: int = 100,
-            linthresh: float = 15, cmap="viridis") -> None:
+            linthresh: float = 15, cmap: Union[colors.Colormap, str] = "viridis") -> None:
+    """ Draws a heatmap that shows areas with most concentration of coordinates in the arena.
+
+    Parameters
+    ----------
+    coordinates: pd.DataFrame
+        Coordinates of each fly in the arena.
+
+    arena_center: tuple[float]
+        Coordinates of the arena's center.
+
+    arena_radius: float
+        Radius of the arena.
+
+    figsize: int. Optional, default to 8.
+        Size of the figure.
+        This argument will be passed as the figsize argument of matplotlib.pyplot.subplots.
+
+    bins: int. Optional, default to 100.
+        Number of bins each dimension of the arena will be divided into.
+        The larger number of bins is, the "higher-resolution" the heatmap is.
+
+    linthresh: float. Optional, default to 15.
+        Display threshold.
+
+    cmap: matplotlib.colors.Colormap or str. Optional, default to 'viridis'.
+        Color palette.
+        This argument will be passed as the cmap argument of seaborn.heatmap.
+        Options: https://matplotlib.org/stable/tutorials/colors/colormaps.html.
+
+    Returns
+    -------
+    None
+    """
 
     _, ax = _arena_boundary(arena_center, arena_radius, figsize)
 
@@ -51,13 +128,38 @@ def heatmap(coordinates: pd.DataFrame, arena_center: tuple,
     plt.show()
 
 
-def fly_animation(coordinates: pd.DataFrame, result_video_path: str, video_size: float = None,
-                  figsize: int = 15):
+def fly_animation(coordinates: pd.DataFrame, result_video_path: str,
+                  video_size: float = None, figsize: int = 15) -> None:
+    """ Creates animation of the flies in one arena over time.
 
+    Parameters
+    ----------
+    coordinates: pd.DataFrame
+        Coordinates of each fly in the arena.
+
+    result_video_path: str
+        Location to save the animation.
+
+    video_size: float. Optional, default to None.
+        In seconds.
+        The function will only create animation of the first video_size seconds.
+        If None, create animation of the whole video.
+
+    figsize: int. Optional, default to 15.
+        Size of the figure.
+        This argument will be passed as the figsize argument of matplotlib.pyplot.subplots.
+
+    Returns
+    -------
+    None
+    """
+
+    # Set up the background
     center, radius = get_center_radius(coordinates)
     fig, ax = _arena_boundary(center, radius, figsize)
     _remove_axes_labels(ax)
 
+    # Prepare the data
     sample_coordinates = sample_by_fly(coordinates, video_size)
     fly_ids = sample_coordinates["fly_id"].unique()
     total_frames = sample_coordinates[sample_coordinates["fly_id"]
@@ -74,6 +176,7 @@ def fly_animation(coordinates: pd.DataFrame, result_video_path: str, video_size:
         points.append(point)
         lines.append(line)
 
+    # Init animation
     def init():
 
         for idx in range(len(fly_ids)):
@@ -83,6 +186,7 @@ def fly_animation(coordinates: pd.DataFrame, result_video_path: str, video_size:
 
         return points + lines
 
+    # Update frame
     def animate(current_frame):
 
         for fly_id_idx in range(len(fly_ids)):

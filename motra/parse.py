@@ -6,7 +6,7 @@ from .constants import FPS
 def parse(path: str) -> pd.DataFrame:
     """Parses coordinates data from an Excel file.
     The input Excel file must have a separate tab for each fly. 
-    Each tab must have 2 columns: pos x and pos y .
+    Each tab must have 2 columns: 'pos x' and 'pos y'.
 
     Parameters
     ----------
@@ -14,7 +14,7 @@ def parse(path: str) -> pd.DataFrame:
         Path to the Excel file of coordinates.
 
     Returns
-    ----------
+    -------
     pandas.DataFrame
         Coordinates of every fly in the experiment over time.
     """
