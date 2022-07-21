@@ -1,6 +1,19 @@
 from dataclasses import dataclass
 from typing import Callable
 
+import matplotlib.pyplot as plt
+
+
+@dataclass
+class MatplotlibConfig:
+    # set the ggplot style to be the default matplotlib
+    # schema
+    style_name: str = 'ggplot'
+    font_size: int = 22
+
+    def apply(self):
+        plt.style.use(self.style_name)
+        plt.rcParams.update({'font.size': self.font_size})
 
 @dataclass(frozen=True)
 class SetupConfig:

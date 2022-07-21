@@ -84,8 +84,8 @@ def convert_to_mm(
 
 
 def convert_to_relative_unit(
-        distance_in_mm: Union[pd.Series, np.array, float],
-        radius: float = RADIUS) -> Union[pd.Series, np.array, float]:
+        distance_in_mm: Union[pd.Series, np.ndarray, float],
+        radius: float = RADIUS) -> Union[pd.Series, np.ndarray, float]:
     """ Converts mm to relative unit of tracking software.
 
     Parameters
@@ -106,7 +106,7 @@ def convert_to_relative_unit(
     return distance_in_mm * scale_factor
 
 
-def get_center_radius(flies_data: pd.DataFrame) -> tuple[tuple[float], float]:
+def get_center_radius(flies_data: pd.DataFrame) -> tuple[tuple[float, float], float]:
     """ Returns the center and radius of the arena.
 
     Parameters

@@ -4,8 +4,9 @@ The essential idea of `motra`, our tracking data analysis programming framework
 is to be able to trivially analyze the large datasets without much hassle.
 
 ## System Prerequisites.
- * Python 3.10
-   * Python 3.10 – `pip` package manager
+ * [Python 3.10](
+https://www.python.org/downloads/release/python-3105/)
+   * Python 3.10 – `pip` package manager (should just be a checkbox, or implicity installed)
    * The following packages (install using `pip`)
      * pandas
      * numpy
@@ -15,11 +16,29 @@ is to be able to trivially analyze the large datasets without much hassle.
 
 The installation of all of these programs is trivial and easy enough to google. 
 
+Python is:
+```
+
 For the python packages, you will probably want to open a terminal
 and type:
 ```shell
 python3.10 -m pip install [LIBRARY_NAME]
 ```
+
+However, for jupyter, you can install with 
+```shell
+python3.10 -m pip install jupyterlab
+``` 
+
+For numpy, pandas, seaborn, and matplotlib, the commands are just
+
+```shell
+python3.10 -m pip install pandas
+python3.10 -m pip install numpy
+python3.10 -m pip install seaborn
+python3.10 -m pip install matplotlib
+``` 
+
 Ensure that both `python3.10` and `jupyter` are in your PATH system variable,
 there are multiple ways of achieving this, generally if you're on a 
 UNIX OS (like Mac and Linux), google how to do add program to path on linux
@@ -36,14 +55,14 @@ whereis python3.10
 ```
 
 
+To acquire a terminal on windows, search for `powershell` in the start menu.
+
 If those commands don't error, and instead print out a directory path, 
 then you're all set, and you don't need to do the next step.
 
 ### Configuring the Path Environment Variable
 
 To acquire a terminal on mac, find the terminal app in the app drawer.
-
-To acquire a terminal on windows, search for `powershell` in the start menu.
 
 
 Generally on Mac and Linux, you have either a `.bashrc` or a `.zshrc`, in 
@@ -77,6 +96,12 @@ the process shouldn't need to be repeated for the jupyter notebook, as I
 believe python will manage your path for that install, but and hopefully, 
 you don't need to do this path work, but sometimes you do.
 
+## On Windows
+Type "Edit the system environment variables" into the 
+search menu on the taskbar. Hit the button in the dialog
+that pops up, and then click the path variable and 
+click edit, add the python installation directory if 
+it isn't already there in a new cell.
 
 ## Digging In
 
@@ -93,6 +118,11 @@ window here".
 Now that you're terminal is open, type,
 ```shell
 jupyter notebook
+```
+
+Or, sometimes you can write
+```
+python3.10 -m notebook
 ```
 
 You're browser of choice should open at this point, and you should 

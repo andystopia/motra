@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import os
-from typing import Tuple, Optional
+from typing import Tuple, Optional, Any
 
 import pandas as pd
 import numpy as np
-from .config import SetupConfig, DataframeKeys
+from .config import SetupConfig, DataframeKeys, MatplotlibConfig
 from dataclasses import dataclass
 import matplotlib.pyplot as plt
 
@@ -19,6 +19,9 @@ class QuadrantModel:
     top_right: "MotraModel"
     bottom_right: "MotraModel"
     bottom_left: "MotraModel"
+
+    def as_list(self) -> list["QuadrantModel"]:
+        return [self.top_left, self.top_right, self.bottom_right, self.bottom_left]
 
 
 def attempt_get_figure_size_from(value):
@@ -117,6 +120,7 @@ class MotraModel:
         self.__velocity = Lazy(self.__calculate_velocity)
         self.__history = history if history is not None else []
 
+
     def get_fly_identifiers(self) -> list[str]:
         """
         Gets the names of all the flies in the dataset
@@ -126,8 +130,239 @@ class MotraModel:
         """
         return list(self.data[self.dataframe_keys.fly_id].unique())
 
-    def plot_velocity(self, axis=None, size: tuple[int, int] | int = 14, apply_legend: bool=False, x_label: Optional[bool | str]=None, y_label: Optional[bool | str]=None,
-                      title: Optional[bool]=None, legend_location:Optional[str]=None):
+    def calculate_smooth_velocity(self, smoothing_seconds: float = 1) -> pd.DataFrame:
+        """Calculates a mean, smoothed velocity over time.
+
+        Parameters
+        ----------
+        smoothing_seconds: the number of seconds to smooth over.
+
+        Returns
+        -------
+        a velocity vector with the appropriate smoothing applied.
+        column names depend on motra model config.
+        """
+        sample_interval_length = int(smoothing_seconds * self.setup_config.frames_per_second)
+
+        start = 0
+        seconds = []
+        items = []
+        while start < self.data.shape[0]:
+            dat = self.data[start: min(self.data.shape[0], start + sample_interval_length)]
+            x, y = dat[self.dataframe_keys.x_pos], dat[self.dataframe_keys.y_pos]
+            velocity = np.mean(distance(x, y, x.shift(1), y.shift(1)))
+            items.append(velocity)
+            seconds.append(start / self.setup_config.frames_per_second)
+            start += sample_interval_length
+        return pd.DataFrame({
+            self.dataframe_keys.timestamp: seconds,
+            "velocity": items
+        })
+
+    def plot_smooth_velocity(self, smoothing=1, axis=None, size: tuple[int, int] | int = 14, apply_legend=False):
+        """
+        Plots the smoothed velocity over time
+        Parameters
+        ----------
+        smoothing: the unit in seconds to plot the smoothed velocity over.
+        axis: the axis to plot on, if none, one will be generated.
+        size: the size of the axis to plot onto, if generated.
+        apply_legend: whether or not to apply a legened
+
+        Returns
+        -------
+        the axis plotted on.
+        """
+        if axis is None:
+            fig, axis = plt.subplots(1, 1, figsize=attempt_get_figure_size_from(size))
+
+        models = [(identifier, self.retain_only_fly_with_id(identifier)) for identifier in self.get_fly_identifiers()]
+
+        for i, model in models:
+            vel = model.calculate_smooth_velocity(smoothing)
+            axis.plot(vel[model.dataframe_keys.timestamp], vel["velocity"],
+                      label=f"velocity of fly: `{i}`" if apply_legend else None)
+        axis.plot(vel[self.dataframe_keys.timestamp], vel["velocity"])
+        return axis
+
+    @staticmethod
+    def cat(models: list["MotraModel"]) -> Optional[MotraModel]:
+        """
+        Combines multiple motra models into a single motra model.
+        Note that if your models are different in fields,
+        only the first one's fields will be preserved, so
+        keep in mind naming otherwise code *will* break
+        down the line.
+        Parameters
+        ----------
+        models: the models that you want to concatenate
+
+        Returns
+        -------
+        a model with all the models concatenated.
+        """
+
+        assert len(models) > 0, "Error: You cannot concat zero models."
+
+        combined_data = pd.concat(map(lambda mod: mod.data, models))
+        root = models[0]
+        return root.derive(data=combined_data, append_to_history=["concatenation!"])
+
+    def get_total_distance_traveled(self) -> pd.DataFrame:
+        """
+        Calculates how far each fly travels.
+        This will only be reasonable if you
+        are looking at one quadrant, or overlayed quadrants,
+        which have been scaled to the arena size.
+        Returns
+        -------
+        an array containing how far the flies have travelled
+        """
+        ids = []
+        distances = []
+        models = [(identifier, self.retain_only_fly_with_id(identifier)) for identifier in self.get_fly_identifiers()]
+        for id, model in models:
+            ids.append(id)
+            vel = model.velocity.to_numpy()
+            vel = vel[~np.isnan(vel)]
+            distances.append(vel.cumsum()[-1])
+        return pd.DataFrame({
+            self.dataframe_keys.fly_id: ids,
+            "total distance traveled": distances,
+        })
+
+    def get_distances_traveled_during_interval(self, interval: float = 1):
+        sample_interval_length = int(interval * self.setup_config.frames_per_second)
+
+        start = 0
+        seconds = []
+        items = []
+        while start < self.data.shape[0]:
+            dat = self.data[start: min(self.data.shape[0], start + sample_interval_length)]
+            x, y = dat[self.dataframe_keys.x_pos], dat[self.dataframe_keys.y_pos]
+            dist = distance(x, y, x.shift(1), y.shift(1)).sum()
+            items.append(dist)
+            seconds.append(start / self.setup_config.frames_per_second)
+            start += sample_interval_length
+        return pd.DataFrame({
+            self.dataframe_keys.timestamp: seconds,
+            "distances travelled": items
+        })
+
+    def get_stopping_boolean_array(self, interval_smoothing: float, stopping_epsilon: float):
+        return self.get_distances_traveled_during_interval(interval_smoothing)[
+                   "distances travelled"].to_numpy() <= stopping_epsilon
+
+    def get_number_of_stops(self, interval_smoothing: float, stopping_epsilon: float) -> int:
+        """
+        Counts the number of times which a fly stops.
+        Only available if you have one fly.
+        Remember to scale down.
+        Parameters
+        ----------
+        interval_smoothing: the amount of time to calculate the distance over
+        stopping_epsilon: how slow is slow enough? Should be in units of mm / seconds.
+
+        Returns
+        -------
+        the number of times that this fly stopped.
+        """
+        return self.get_stopping_boolean_array(interval_smoothing, stopping_epsilon)
+
+    def get_time_of_sedation(self, interval_smoothing: float, stopping_epsilon: float):
+        """
+        Get the time that this fly was sedated.
+        Only works if you have a singular fly.
+        Parameters
+        ----------
+        interval_smoothing
+        stopping_epsilon
+
+        Returns
+        -------
+
+        """
+        stops: np.ndarray = (self.get_distances_traveled_during_interval()[
+                                 "distances travelled"].to_numpy() <= stopping_epsilon)[::-1]
+        if np.all(stops == False):
+            return "fly unsedated"
+        try:
+            print(stops.shape)
+            first_false = len(stops) - np.where(stops == False)[0][0]
+        except KeyError:
+            return "fly unsedated"
+
+        print(first_false)
+        return self.data[
+            self.dataframe_keys.timestamp].to_numpy()[first_false]
+
+    def plot_distance_from_center_over_time(self, axis=None, size: tuple[int, int] | int = 14, xlab=True, ylab=True, title=True, apply_legend=False):
+        """
+        Plot a histogram of the distances from the center of the arena.
+        Parameters
+        ----------
+        axis: the axis to plot on, can if none, then one will be created for plotting.
+        size: if necessary, the size of the created axis to plot on.
+
+        Returns
+        -------
+        the axis plotted on.
+        """
+        if axis is None:
+            fig, axis = plt.subplots(1, 1, figsize=attempt_get_figure_size_from(size))
+
+        for (id, fly) in self.get_flies():
+            radius = np.sqrt(
+                np.square(fly.data[fly.dataframe_keys.x_pos]) +
+                np.square(fly.data[fly.dataframe_keys.y_pos])
+            )
+            axis.plot(fly.data[fly.dataframe_keys.timestamp], radius, label=f"fly w/ id: `{id}`", linewidth=3.0)
+
+        if xlab:
+            axis.set_xlabel(xlab if xlab is not True else "time (s)")
+        if ylab:
+            axis.set_ylabel(ylab if ylab is not True else "distance from center (mm)")
+        if title:
+            axis.set_title(title if title is not True else "distance from center (mm) vs time (s)")
+        if apply_legend:
+            axis.legend(loc="upper left" if apply_legend is True else apply_legend, fancybox=True, bbox_to_anchor=(1, 0.95))
+        return axis
+    def plot_distance_from_center_histogram(self, axis=None, size: tuple[int, int] | int = 14):
+        """
+        Plot a histogram of the distances from the center of the arena.
+        Parameters
+        ----------
+        axis: the axis to plot on, can if none, then one will be created for plotting.
+        size: if necessary, the size of the created axis to plot on.
+
+        Returns
+        -------
+        the axis plotted on.
+        """
+        if axis is None:
+            fig, axis = plt.subplots(1, 1, figsize=attempt_get_figure_size_from(size))
+
+        radius = np.sqrt(
+            np.square(self.data[self.dataframe_keys.x_pos]) +
+            np.square(self.data[self.dataframe_keys.y_pos])
+        )
+
+        axis.hist(radius)
+        return axis
+
+    def get_flies(self) -> list[tuple[Any, "MotraModel"]]:
+        """
+        Returns a list of fly id's with the respective fly model.
+        Returns
+        -------
+
+        """
+        return [(identifier, self.retain_only_fly_with_id(identifier)) for identifier in self.get_fly_identifiers()]
+
+    def plot_velocity(self, axis=None, size: tuple[int, int] | int = 14,
+                      apply_legend: bool = False, x_label: Optional[bool | str] = None,
+                      y_label: Optional[bool | str] = None,
+                      title: Optional[bool] = None, legend_location: Optional[str] = None):
         """
         Plots the velocity of the flies against time.
         It's recommended that you set the scale of the arena
@@ -136,6 +371,7 @@ class MotraModel:
         Parameters
         ----------
         axis: the axis to plot on, if none will automatically create a new axis
+        smoothing: the number of seconds to smooth the graph over by.
         size: the size of the axis to plot on. By default this is 14, unused if axis is specified.
         apply_legend: set to true, if you would like a legend.
         x_label: if none, then will generate an xlabel automatically, if false, will not genreate an x label, if
@@ -152,6 +388,8 @@ class MotraModel:
         -------
         the axis that the velocity was plotted on.
         """
+
+        ## we will implement a smoothing algorithm, by simply
         if axis is None:
             fig, axis = plt.subplots(1, 1, figsize=attempt_get_figure_size_from(size))
 
@@ -295,8 +533,6 @@ class MotraModel:
         """
         return self.__velocity.value
 
-
-
     def scale_to_arena_size(self):
         """
         Scales the data up to the defined arena size. Remember you can configure this
@@ -313,8 +549,8 @@ class MotraModel:
         # convert to polar coordinates
         theta = np.arctan2(locations[self.dataframe_keys.y_pos], locations[self.dataframe_keys.x_pos])
         radius = np.sqrt(
-            np.square(locations[self.dataframe_keys.x_pos] +
-            np.square(locations[self.dataframe_keys.y_pos]))
+            np.square(locations[self.dataframe_keys.x_pos]) +
+            np.square(locations[self.dataframe_keys.y_pos])
         )
 
         # normalize and upscale the radius
@@ -380,6 +616,7 @@ class MotraModel:
         temp = self.data[[self.dataframe_keys.x_pos, self.dataframe_keys.y_pos]]
         temp = temp if copy is False else temp.copy()
         return temp
+
     def filter_quadrant(self, arena_center_coordinate: Coordinate | tuple[float, float],
                         center_data_at_arena_center: bool = False) -> "MotraModel":
         """
@@ -457,6 +694,40 @@ class MotraModel:
         copied[self.dataframe_keys.y_pos] = normalize_array(copied[self.dataframe_keys.y_pos])
 
         return self.derive(data=copied, append_to_history="Normalized Motra Model to Range: [0, 1]")
+
+    def overlay_quadrants(self,
+                          splitting_origin_point: Coordinate | tuple,
+                          *, # keep them on their toes!
+                          include_top_left=True,
+                          include_top_right=True,
+                          include_bottom_left=True,
+                          include_bottom_right=True) -> "MotraModel":
+        """
+        Splits the quadrants up and then centers them, scales them to the
+        arena size.
+        Parameters
+        ----------
+        splitting_origin_point: the point at which to split the dataset at.
+        include_top_left: whether to include the top left quadrant
+        include_top_right: whether to include the top right quadrant
+        include_bottom_left: whether to include the bottom left quadrant
+        include_bottom_right: whether to include the bottom right quadrant
+
+        Returns
+        -------
+        a new motra model with the quadrants overlaid.
+        """
+        quadrants: QuadrantModel = self.split_up_quadrants(splitting_origin_point)
+
+        # create an array of the quadrants and then
+        # index them using the booleans to specify which ones we want.
+        quadrant_array = np.array([
+            quadrants.top_left,
+            quadrants.top_right,
+            quadrants.bottom_left,
+            quadrants.bottom_right])[np.array([include_top_left, include_top_right, include_bottom_left, include_bottom_right])]
+        print(quadrant_array)
+        return MotraModel.cat([quadrant.scale_to_arena_size() for quadrant in quadrant_array])
 
     def split_up_quadrants(self, splitting_origin_point: Coordinate | tuple,
                            auto_center_fly_data: bool = False) -> QuadrantModel:
@@ -544,6 +815,7 @@ class MotraModel:
             fig, axis = plt.subplots(1, 1, figsize=attempt_get_figure_size_from(size))
         axis.scatter(self.data[self.dataframe_keys.x_pos], self.data[self.dataframe_keys.y_pos],
                      c=self.data[self.dataframe_keys.fly_id])
+
         return axis
 
     def plot_flies_at_frame(self, frame: int, axis: plt.Axes = None, figure_size=None, auto_title=False) -> plt.Axes:
@@ -650,10 +922,10 @@ class MotraModel:
 
         df = pd.read_csv(path)
         del df["frame"]
-        del df[" "]
+        # del df[" "]
 
-        x_cols = [col for col in df.columns if "_x" in col]
-        y_cols = [col for col in df.columns if "_y" in col]
+        x_cols = [col for col in df.columns if ".x" in col]
+        y_cols = [col for col in df.columns if ".y" in col]
 
         combined_data = df[x_cols].melt()
         y_vals = df[y_cols].melt()["value"]
