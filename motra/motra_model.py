@@ -924,8 +924,8 @@ class MotraModel:
         del df["frame"]
         # del df[" "]
 
-        x_cols = [col for col in df.columns if ".x" in col]
-        y_cols = [col for col in df.columns if ".y" in col]
+        x_cols = [col for col in df.columns if "x" in col]
+        y_cols = [col for col in df.columns if "y" in col]
 
         combined_data = df[x_cols].melt()
         y_vals = df[y_cols].melt()["value"]
