@@ -120,6 +120,9 @@ class MotraModel:
         self.__velocity = Lazy(self.__calculate_velocity)
         self.__history = history if history is not None else []
 
+    def time_distribution_by_quadrant(self, center: tuple[float, float] = (0, 0)) -> pd.DataFrame:
+        import stats
+        return stats.time_distribution_by_quadrant(self.data, center)
 
     def get_fly_identifiers(self) -> list[str]:
         """
@@ -296,7 +299,8 @@ class MotraModel:
         return self.data[
             self.dataframe_keys.timestamp].to_numpy()[first_false]
 
-    def plot_distance_from_center_over_time(self, axis=None, size: tuple[int, int] | int = 14, xlab=True, ylab=True, title=True, apply_legend=False):
+    def plot_distance_from_center_over_time(self, axis=None, size: tuple[int, int] | int = 14, xlab=True, ylab=True,
+                                            title=True, apply_legend=False):
         """
         Plot a histogram of the distances from the center of the arena.
         Parameters
@@ -325,8 +329,10 @@ class MotraModel:
         if title:
             axis.set_title(title if title is not True else "distance from center (mm) vs time (s)")
         if apply_legend:
-            axis.legend(loc="upper left" if apply_legend is True else apply_legend, fancybox=True, bbox_to_anchor=(1, 0.95))
+            axis.legend(loc="upper left" if apply_legend is True else apply_legend, fancybox=True,
+                        bbox_to_anchor=(1, 0.95))
         return axis
+
     def plot_distance_from_center_histogram(self, axis=None, size: tuple[int, int] | int = 14):
         """
         Plot a histogram of the distances from the center of the arena.
@@ -697,7 +703,7 @@ class MotraModel:
 
     def overlay_quadrants(self,
                           splitting_origin_point: Coordinate | tuple,
-                          *, # keep them on their toes!
+                          *,  # keep them on their toes!
                           include_top_left=True,
                           include_top_right=True,
                           include_bottom_left=True,
@@ -725,7 +731,8 @@ class MotraModel:
             quadrants.top_left,
             quadrants.top_right,
             quadrants.bottom_left,
-            quadrants.bottom_right])[np.array([include_top_left, include_top_right, include_bottom_left, include_bottom_right])]
+            quadrants.bottom_right])[
+            np.array([include_top_left, include_top_right, include_bottom_left, include_bottom_right])]
         print(quadrant_array)
         return MotraModel.cat([quadrant.scale_to_arena_size() for quadrant in quadrant_array])
 
