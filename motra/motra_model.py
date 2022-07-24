@@ -153,7 +153,7 @@ class MotraModel:
         while start < self.data.shape[0]:
             dat = self.data[start: min(self.data.shape[0], start + sample_interval_length)]
             x, y = dat[self.dataframe_keys.x_pos], dat[self.dataframe_keys.y_pos]
-            velocity = np.mean(distance(x, y, x.shift(1), y.shift(1)))
+            velocity = np.mean(distance(x, y, x.shift(1), y.shift(1))) * sample_interval_length
             items.append(velocity)
             seconds.append(start / self.setup_config.frames_per_second)
             start += sample_interval_length
