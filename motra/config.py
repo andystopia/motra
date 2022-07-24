@@ -9,11 +9,24 @@ class MatplotlibConfig:
     # set the ggplot style to be the default matplotlib
     # schema
     style_name: str = 'ggplot'
-    font_size: int = 22
+    font_size: int = 18
+
+    SMALL_SIZE = 18
+    MEDIUM_SIZE = 22
+    BIGGER_SIZE = 28
+
 
     def apply(self):
         plt.style.use(self.style_name)
-        plt.rcParams.update({'font.size': self.font_size})
+
+        plt.rc('font', size=MatplotlibConfig.SMALL_SIZE)  # controls default text sizes
+        plt.rc('axes', titlesize=MatplotlibConfig.SMALL_SIZE)  # fontsize of the axes title
+        plt.rc('axes', labelsize=MatplotlibConfig.MEDIUM_SIZE)  # fontsize of the x and y labels
+        plt.rc('xtick', labelsize=MatplotlibConfig.SMALL_SIZE)  # fontsize of the tick labels
+        plt.rc('ytick', labelsize=MatplotlibConfig.SMALL_SIZE)  # fontsize of the tick labels
+        plt.rc('legend', fontsize=MatplotlibConfig.SMALL_SIZE)  # legend fontsize
+        plt.rc('figure', titlesize=MatplotlibConfig.BIGGER_SIZE)  # fontsize of the figure title
+        # plt.rcParams.update({'font.size': self.font_size})
 
 @dataclass(frozen=True)
 class SetupConfig:
