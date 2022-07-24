@@ -1,3 +1,5 @@
+# Motra Init File
+
 from .visualization import arena_trajectory, heatmap, fly_animation
 from .parse import parse
 from .stats import stats, visualize_stats, time_distribution_by_quadrant,\
