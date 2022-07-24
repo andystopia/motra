@@ -193,7 +193,7 @@ class MotraModel:
         if x_label is not False:
             axis.set_xlabel(x_label if x_label is not None else "Seconds")
         if y_label is not False:
-            axis.set_ylabel(y_label if y_label is not None else "distance per second")
+            axis.set_ylabel(y_label if y_label is not None else f"distance per {smoothing} second")
         if apply_legend is True:
             axis.legend(loc=legend_location if legend_location is not None else "upper right")
         if title is not False:
