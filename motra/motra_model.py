@@ -164,7 +164,7 @@ class MotraModel:
 
     def plot_smooth_velocity(self, smoothing=1, axis=None, size: tuple[int, int] | int = 14, apply_legend=False, x_label: Optional[bool | str] = None,
                       y_label: Optional[bool | str] = None,
-                      title: Optional[bool] = None, legend_location: Optional[str] = None):
+                      title: Optional[bool] = None, legend_location: Optional[str] = None, y_units = None):
         """
         Plots the smoothed velocity over time
         Parameters
@@ -193,8 +193,12 @@ class MotraModel:
         if x_label is not False:
             axis.set_xlabel(x_label if x_label is not None else "Seconds")
         if y_label is not False:
-            axis.set_ylabel(y_label if y_label is not None else f"distance per {smoothing} second")
+            if y_units is not None:
+                axis.set_ylabel(y_label if y_label is not None else f"distance ({y_units}) per {smoothing} second")
+            else:
+                axis.set_ylabel(y_label if y_label is not None else f"distance per {smoothing} second")
         if apply_legend is True:
+
             axis.legend(loc=legend_location if legend_location is not None else "upper right")
         if title is not False:
             axis.set_title(title if title is not None else "Graph of velocity of flies vs time")
