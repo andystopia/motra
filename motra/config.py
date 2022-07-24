@@ -64,7 +64,7 @@ class DataframeKeys:
     x_pos: str = "pos x"
     y_pos: str = "pos y"
     timestamp: str = "timestamp"
-    fly_id: str = "fly id"
+    fly_id: str = "fly_id"
     fly_id_generation_func: Callable[[int], str] = lambda val: f"fly {val}"
 
     def get_fly_key_by_id(self, fly_id: int):

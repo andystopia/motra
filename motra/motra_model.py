@@ -121,8 +121,8 @@ class MotraModel:
         self.__history = history if history is not None else []
 
     def time_distribution_by_quadrant(self, center: tuple[float, float] = (0, 0)) -> pd.DataFrame:
-        import stats
-        return stats.time_distribution_by_quadrant(self.data, center)
+        from motra import time_distribution_by_quadrant
+        return time_distribution_by_quadrant(self.data, center)
 
     def get_fly_identifiers(self) -> list[str]:
         """
