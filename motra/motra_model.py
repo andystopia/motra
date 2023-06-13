@@ -973,6 +973,90 @@ class MotraModel:
         return MotraModel(combined_data, setup_config, dataframe_key_config,
                           history=[f"read from blender generated csv at path: {path}"])
 
+    @staticmethod 
+    def from_sleap(path: os.PathLike, node_name: Optional[str], setup_config: Optional[SetupConfig] = None, dataframe_key_config: Optional[DataframeKeys] = None) -> "MotraModel":
+        """
+        Parse a sleap file into a motra model. This requires the `sleap` feature to work correctly.
+
+        
+        Parameters
+        ----------
+        path: the path to the sleap file
+        setup_config: the setup config to use, if left as none, will use the default.
+        node_name: The nodename to use, generally head, end, mid1, or mid2.
+        dataframe_key_config: the dataframe keys to use for the generated dataframe, if none, will use default
+        
+        Returns
+        -------
+        a motra model containing the information at the given path
+        """
+
+
+        try:
+            import sleap_io as sio
+        except ImportError:
+            raise ImportError("You must install the `sleap` feature to use this method\n. e.g. pip install motra[sleap]")
+        
+        def convert_predictions_to_motra(labels, node_name=None) -> pd.DataFrame:
+            
+            """Helper function to convert predictions data to a Pandas dataframe.
+
+            Args:
+                labels: A SLEAP Labels object.
+
+            Raises:
+                ValueError: If no frames in the label objects contain predicted instances.
+
+            Returns:
+                pd.DataFrame: A pandas data frame with the structured data with
+                hierarchical columns. The column hierarchy is:
+                        "video_path",
+                        "skeleton_name",
+                        "track_name",
+                        "node_name",
+                And it is indexed by the frames.
+            """
+
+            # Form pairs of labeled_frames and predicted instances
+            labeled_frames = labels.labeled_frames
+            all_frame_instance_tuples = (
+                (label_frame, instance)  # type: ignore
+                for label_frame in labeled_frames
+                for instance in label_frame.predicted_instances
+            )
+
+            # Extract the data
+            data_list = list()
+            for labeled_frame, instance in all_frame_instance_tuples:
+                # Traverse the nodes of the instances's skeleton
+                skeleton = instance.skeleton
+                for node in skeleton.nodes:
+                    if node.name != node_name:
+                        continue
+                    name = instance.track.name if instance.track else 'untracked'
+                    row_dict = {
+                        "fly_id": f"{name}/{node.name}" if node_name == None else name,
+                        "timestamp": labeled_frame.frame_idx,
+                        "pos x": instance.points[node].x,
+                        "pos y": instance.points[node].y,
+                        # "score": instance.points[node].score,  # type: ignore[attr-defined]
+                        # "node_name": node.name,
+                        # "skeleton_name": skeleton.name,
+                        # "track_name": name,
+                        # "video_path": labeled_frame.video.filename,
+                    }
+                    data_list.append(row_dict)
+
+            if not data_list:
+                raise ValueError("No predicted instances found in labels object")
+
+            labels_df = pd.DataFrame(data_list).sort_values("fly_id")
+
+            return labels_df
+        labels = sio.load_slp(path)
+        df = convert_predictions_to_motra(labels, node_name=node_name)
+        return MotraModel(df, None, None, history=[f"read from sleap file at path: {path}"])
+
     @staticmethod
     def read_from_excel(path: os.PathLike, setup_config: Optional[SetupConfig] = None,
                         dataframe_key_config: Optional[DataframeKeys] = None) -> "MotraModel":
