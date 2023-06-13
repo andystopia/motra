@@ -837,8 +837,9 @@ class MotraModel:
         """
         if axis is None:
             fig, axis = plt.subplots(1, 1, figsize=attempt_get_figure_size_from(size))
+        (factors, labels) = pd.factorize(self.data[self.dataframe_keys.fly_id])
         axis.scatter(self.data[self.dataframe_keys.x_pos], self.data[self.dataframe_keys.y_pos],
-                     c=self.data[self.dataframe_keys.fly_id])
+                     c=factors)
 
         return axis
 
